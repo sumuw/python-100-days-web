@@ -1,0 +1,109 @@
+.md-body {
+  line-height: 1.85;
+  font-size: 15px;
+  color: #2f3437;
+  word-break: break-word;
+}
+
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4 {
+  margin: 28px 0 14px;
+  font-weight: 500;
+  scroll-margin-top: 80px;
+}
+
+.md-body h1 { font-size: 24px; border-bottom: 1px solid var(--p100-border); padding-bottom: 8px; }
+.md-body h2 { font-size: 20px; border-bottom: 1px dashed var(--p100-border); padding-bottom: 6px; }
+.md-body h3 { font-size: 17px; }
+.md-body h4 { font-size: 15px; }
+
+.md-body p {
+  margin: 12px 0;
+}
+
+.md-body ul,
+.md-body ol {
+  padding-left: 24px;
+  margin: 12px 0;
+}
+
+.md-body li {
+  margin: 6px 0;
+}
+
+.md-body blockquote {
+  margin: 14px 0;
+  padding: 8px 16px;
+  border-left: 4px solid #409eff;
+  background: #f5f9ff;
+  color: #5a6673;
+}
+
+.md-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--p100-border);
+  margin: 8px 0;
+}
+
+.md-body table {
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+
+.md-body th,
+.md-body td {
+  border: 1px solid var(--p100-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.md-body th {
+  background: #f5f7fa;
+}
+
+.md-body code {
+  background: #f3f4f5;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.md-body pre.hljs {
+  background: #f8f9fb;
+  border: 1px solid var(--p100-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 14px 0;
+  line-height: 1.6;
+}
+
+.md-body pre.hljs code {
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+}
+
+.md-body hr {
+  border: none;
+  border-top: 1px solid var(--p100-border);
+  margin: 24px 0;
+}
+
+.md-body a {
+  color: #409eff;
+  text-decoration: underline;
+}
+
+/* KaTeX 数学公式 */
+.md-body .katex { font-size: 1.06em; }
+.md-body .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.md-body .katex-display > .katex { text-align: center; }

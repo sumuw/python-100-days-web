@@ -1,0 +1,1 @@
+[{"lang":"Bash","code":"pip install jupyterlab","startLine":65,"docIndex":0,"docTitle":"环境准备"},{"lang":"Bash","code":"pip install numpy pandas matplotlib","startLine":71,"docIndex":0,"docTitle":"环境准备"}]
