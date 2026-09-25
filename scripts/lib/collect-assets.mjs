@@ -35,3 +35,18 @@ export function rewriteAssets(markdown, resolveUrl) {
   })
   return out
 }
+
+// 外部图片只有在调用方提供本地兜底资源时才替换，其他外部链接保持原样。
+export function rewriteExternalAssets(markdown, resolveUrl) {
+  let out = markdown.replace(MD_IMG_RE, (full, url) => {
+    if (normalizeRel(url)) return full
+    const next = resolveUrl(url)
+    return next ? full.replace(url, next) : full
+  })
+  out = out.replace(HTML_IMG_RE, (full, head, quote, url) => {
+    if (normalizeRel(url)) return full
+    const next = resolveUrl(url)
+    return next ? `${head}${quote}${next}${quote}` : full
+  })
+  return out
+}

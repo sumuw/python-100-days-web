@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-label="Hive 与关系型数据库对比插图缺失说明">
+  <rect width="960" height="360" fill="#f8fafc"/>
+  <rect x="32" y="32" width="896" height="296" rx="16" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+  <text x="480" y="145" text-anchor="middle" fill="#9a3412" font-size="30" font-family="Arial, Microsoft YaHei, sans-serif">上游课程插图缺失</text>
+  <text x="480" y="200" text-anchor="middle" fill="#7c2d12" font-size="22" font-family="Arial, Microsoft YaHei, sans-serif">Hive 与传统关系型数据库对比</text>
+  <text x="480" y="252" text-anchor="middle" fill="#78716c" font-size="16" font-family="Arial, Microsoft YaHei, sans-serif">原文件 QQ20220707-195545@2x.png 未包含在上游仓库及其可用历史中</text>
+</svg>

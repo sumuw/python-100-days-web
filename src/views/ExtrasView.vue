@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCurriculumStore } from '@/stores/curriculum'
-import { fetchDoc } from '@/api/content'
+import { fetchDoc, rewriteContentUrls } from '@/api/content'
 import { extractToc, renderMarkdown } from '@/utils/markdown'
 import MarkdownView from '@/components/content/MarkdownView.vue'
 
@@ -19,7 +19,7 @@ async function load(slug) {
   if (!item) return
   loading.value = true
   try {
-    html.value = renderMarkdown(await fetchDoc(item.url))
+    html.value = renderMarkdown(rewriteContentUrls(await fetchDoc(item.url)))
     toc.value = extractToc(html.value)
   } finally {
     loading.value = false

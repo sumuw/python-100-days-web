@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 
 /**
  * 全局 UI 状态（非持久化）。
- * headerHidden: 顶部菜单栏是否隐藏 —— 页面下滑时隐藏，上滑时显示。
+ * headerHidden: 顶部菜单栏是否隐藏 —— 课程内容区下滑时隐藏，上滑时显示。
  */
 export const uiState = reactive({
   headerHidden: false,
@@ -15,8 +15,8 @@ const DELTA = 4 // 过滤微小抖动
 let lastY = 0
 let listening = false
 
-function onScroll() {
-  const y = window.scrollY
+function syncHeader(target) {
+  const y = target.scrollTop
   if (Math.abs(y - lastY) < DELTA) return
   if (y <= HIDE_THRESHOLD) {
     uiState.headerHidden = false
@@ -28,13 +28,20 @@ function onScroll() {
   lastY = y
 }
 
-/** 在布局组件里调用一次，绑定滚动监听并同步吸顶偏移量 CSS 变量 */
-export function bindHeaderScroll() {
-  if (listening) return () => {}
+/**
+ * 绑定课程内容区的滚动方向，用于控制顶部菜单栏显隐。
+ * 页面本身不参与滚动，避免课程简介和正文一起离开视口。
+ */
+export function bindHeaderScroll(target) {
+  if (!target || listening) return () => {}
   listening = true
-  window.addEventListener('scroll', onScroll, { passive: true })
+  lastY = target.scrollTop
+  const onScroll = () => syncHeader(target)
+  target.addEventListener('scroll', onScroll, { passive: true })
   return () => {
-    window.removeEventListener('scroll', onScroll)
+    target.removeEventListener('scroll', onScroll)
     listening = false
+    lastY = 0
+    uiState.headerHidden = false
   }
 }

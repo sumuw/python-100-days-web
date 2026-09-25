@@ -5,8 +5,9 @@ import { spawnSync } from 'node:child_process'
 import { STAGES, TOTAL_DAYS, stageOfDay, pad2 } from './lib/stages.mjs'
 import { parseDayFile, groupByDay, outSlug } from './lib/parse-day.mjs'
 import { extractBlocks } from './lib/extract-blocks.mjs'
-import { rewriteAssets } from './lib/collect-assets.mjs'
+import { rewriteAssets, rewriteExternalAssets } from './lib/collect-assets.mjs'
 import { resolveCodeOwner, langOfExt } from './lib/register-code.mjs'
+import { OFFLINE_EXTERNAL_ASSETS, OFFLINE_MISSING_ASSETS } from './lib/offline-assets.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -18,13 +19,25 @@ const argOf = (k, d) => {
 const hasFlag = (k) => argv.includes(`--${k}`)
 
 const REPO_URL = process.env.CONTENT_REPO || 'https://github.com/jackfrued/Python-100-Days.git'
+const REPO_REF = process.env.CONTENT_REF || 'master'
 const REPO_DIR = path.resolve(ROOT, argOf('repo', process.env.CONTENT_DIR || '../Python-100-Days'))
 const OUT_DIR = path.resolve(ROOT, argOf('out', process.env.CONTENT_OUT || 'public/content'))
 const ASSETS_MODE = argOf('assets', process.env.CONTENT_ASSETS || 'copy')
 const OFFLINE = hasFlag('offline')
 
+function defaultAssetsBase(repoUrl, ref) {
+  const match = /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i.exec(repoUrl)
+  if (!match) return null
+  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${ref}/`
+}
+
+const ASSETS_BASE = process.env.CONTENT_ASSETS_BASE || defaultAssetsBase(REPO_URL, REPO_REF)
+const OFFLINE_ASSETS_DIR = path.join(ROOT, 'scripts', 'offline-assets')
+
 const mkdirp = (d) => fs.mkdirSync(d, { recursive: true })
 const rmrf = (d) => fs.rmSync(d, { recursive: true, force: true })
+// Vite 静态服务会将路径中的 %2B 作为文件名字符，而不是还原为 +。
+const encodePathSegment = (value) => encodeURIComponent(value).replace(/%2B/gi, '+')
 const countWords = (s) =>
   (s.match(/[一-龥]/g) || []).length +
   (s.replace(/[一-龥]/g, ' ').match(/[A-Za-z0-9_]+/g) || []).length
@@ -44,7 +57,7 @@ function ensureRepo() {
   if (OFFLINE) throw new Error(`源仓库不存在且已指定 --offline：${REPO_DIR}`)
   console.log(`克隆 ${REPO_URL} → ${REPO_DIR}`)
   mkdirp(path.dirname(REPO_DIR))
-  const r = spawnSync('git', ['clone', '--depth', '1', REPO_URL, REPO_DIR], { stdio: 'inherit' })
+  const r = spawnSync('git', ['clone', '--depth', '1', '--branch', REPO_REF, REPO_URL, REPO_DIR], { stdio: 'inherit' })
   if (r.status !== 0) throw new Error('git clone 失败')
 }
 
@@ -59,6 +72,10 @@ console.log('— Python-100-Days 内容管线 —')
 console.log(`源目录: ${REPO_DIR}`)
 console.log(`输出目录: ${OUT_DIR}`)
 console.log(`图片策略: ${ASSETS_MODE}`)
+if (!['copy', 'remote'].includes(ASSETS_MODE)) throw new Error(`不支持的图片策略：${ASSETS_MODE}`)
+if (ASSETS_MODE === 'remote' && !ASSETS_BASE) {
+  throw new Error('远程图片模式需要 CONTENT_ASSETS_BASE，或使用 GitHub 格式的 CONTENT_REPO')
+}
 
 ensureRepo()
 
@@ -74,6 +91,8 @@ function assetResolver(baseDir, stageDir) {
   return (rel) => {
     const src = path.join(baseDir, rel)
     if (!fs.existsSync(src)) {
+      const fallback = OFFLINE_MISSING_ASSETS.get(`${stageDir}/${rel}`)
+      if (fallback && ASSETS_MODE === 'copy') return copyOfflineAsset(fallback)
       missingAssets.add(`${stageDir}/${rel}`)
       return null
     }
@@ -86,8 +105,32 @@ function assetResolver(baseDir, stageDir) {
       fs.copyFileSync(src, target)
       assetCount += 1
     }
-    return `/content/res/${encodeURIComponent(stageDir)}/${sub.split('/').map(encodeURIComponent).join('/')}`
+    if (ASSETS_MODE === 'remote') {
+      return `${ASSETS_BASE}${[stageDir, ...rel.split('/')].map(encodePathSegment).join('/')}`
+    }
+    return `/content/res/${encodePathSegment(stageDir)}/${sub.split('/').map(encodePathSegment).join('/')}`
   }
+}
+
+function copyOfflineAsset(fileName) {
+  const src = path.join(OFFLINE_ASSETS_DIR, fileName)
+  if (!fs.existsSync(src)) {
+    throw new Error(`缺少离线兜底资源：${src}`)
+  }
+  if (!copiedAssets.has(src)) {
+    copiedAssets.add(src)
+    const target = path.join(OUT_DIR, 'res', 'offline', fileName)
+    mkdirp(path.dirname(target))
+    fs.copyFileSync(src, target)
+    assetCount += 1
+  }
+  return `/content/res/offline/${encodePathSegment(fileName)}`
+}
+
+function externalAssetResolver(url) {
+  const fileName = OFFLINE_EXTERNAL_ASSETS.get(url)
+  if (!fileName || ASSETS_MODE !== 'copy') return null
+  return copyOfflineAsset(fileName)
 }
 
 let docCount = 0
@@ -109,7 +152,10 @@ for (const stage of STAGES) {
     item.slug = outSlug(item)
     if (!written.has(item.slug)) {
       written.add(item.slug)
-      const rewritten = rewriteAssets(item.content, assetResolver(dir, stage.dir))
+      const rewritten = rewriteExternalAssets(
+        rewriteAssets(item.content, assetResolver(dir, stage.dir)),
+        externalAssetResolver,
+      )
       fs.writeFileSync(path.join(OUT_DIR, 'days', `${item.slug}.md`), rewritten, 'utf8')
       docCount += 1
     }
@@ -176,7 +222,7 @@ for (const stage of STAGES) {
     const owner = resolveCodeOwner({ dir: stage.dir, relPath: rel, stage, docsByDay })
     codeFiles.push({
       name: rel.split('/').pop(),
-      path: `/content/code/${encodeURIComponent(stage.dir)}/${rel.split('/').map(encodeURIComponent).join('/')}`,
+      path: `/content/code/${encodePathSegment(stage.dir)}/${rel.split('/').map(encodePathSegment).join('/')}`,
       lang: langOfExt(rel),
       size: fs.statSync(src).size,
       stageId: stage.id,
@@ -193,7 +239,10 @@ if (fs.existsSync(extraDir)) {
   const files = fs.readdirSync(extraDir).filter((f) => f.endsWith('.md')).sort((a, b) => a.localeCompare(b, 'zh'))
   files.forEach((f, i) => {
     const content = fs.readFileSync(path.join(extraDir, f), 'utf8')
-    const rewritten = rewriteAssets(content, assetResolver(extraDir, '番外篇'))
+    const rewritten = rewriteExternalAssets(
+      rewriteAssets(content, assetResolver(extraDir, '番外篇')),
+      externalAssetResolver,
+    )
     const slug = String(i + 1).padStart(2, '0')
     fs.writeFileSync(path.join(OUT_DIR, 'extras', `${slug}.md`), rewritten, 'utf8')
     extras.push({

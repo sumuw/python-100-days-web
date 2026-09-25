@@ -1,26 +1,14 @@
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCurriculumStore } from '@/stores/curriculum'
 import { useProgressStore } from '@/stores/progress'
-import { bindHeaderScroll, uiState } from '@/stores/ui'
+import { uiState } from '@/stores/ui'
 
 const router = useRouter()
 const curriculum = useCurriculumStore()
 const progress = useProgressStore()
 const kw = ref('')
-
-const unbind = bindHeaderScroll()
-onBeforeUnmount(unbind)
-
-// 同步吸顶偏移：顶栏可见时 Day 标题栏停在 58px，顶栏隐藏时贴到 0
-watch(
-  () => uiState.headerHidden,
-  (hidden) => {
-    document.documentElement.style.setProperty('--p100-header-top', hidden ? '0px' : '58px')
-  },
-  { immediate: true },
-)
 
 function submit() {
   const q = kw.value.trim()
@@ -56,7 +44,13 @@ function gotoResume() {
       </div>
     </el-header>
 
-    <el-main class="main">
+    <el-main
+      class="main"
+      :class="{
+        'day-main': $route.name === 'day',
+        'header-hidden-main': $route.name === 'day' && uiState.headerHidden,
+      }"
+    >
       <slot />
     </el-main>
 
@@ -71,7 +65,10 @@ function gotoResume() {
 
 <style scoped>
 .layout {
-  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 .header {
   display: flex;
@@ -122,10 +119,18 @@ function gotoResume() {
   text-align: right;
 }
 .main {
+  flex: 1;
+  min-height: 0;
   padding: 0;
   margin-top: 58px;
-  /* Element Plus 的 el-main 默认 overflow:auto，会让子元素 position:sticky 失效，覆盖掉 */
   overflow: visible;
+  transition: margin-top 0.25s ease;
+}
+.day-main {
+  overflow: hidden;
+}
+.day-main.header-hidden-main {
+  margin-top: 0;
 }
 .footer {
   display: flex;

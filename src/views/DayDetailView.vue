@@ -3,7 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCurriculumStore } from '@/stores/curriculum'
 import { useProgressStore } from '@/stores/progress'
-import { fetchBlocks, fetchDoc } from '@/api/content'
+import { fetchBlocks, fetchDoc, rewriteContentUrls } from '@/api/content'
+import { bindHeaderScroll, uiState } from '@/stores/ui'
 import { extractToc, renderMarkdown } from '@/utils/markdown'
 import MarkdownView from '@/components/content/MarkdownView.vue'
 import CodePanel from '@/components/content/CodePanel.vue'
@@ -24,6 +25,7 @@ const html = ref('')
 const toc = ref([])
 const blocks = ref([])
 const loading = ref(false)
+const contentScroller = ref(null)
 
 const codeFiles = computed(() => (day.value ? curriculum.codeFilesOfDay(dayNum.value) : []))
 
@@ -34,7 +36,7 @@ async function loadDoc() {
   try {
     const doc = d.docs[docIndex.value] || d.docs[0]
     const text = await fetchDoc(doc.url)
-    html.value = renderMarkdown(text)
+    html.value = renderMarkdown(rewriteContentUrls(text))
     toc.value = extractToc(html.value)
   } catch (e) {
     html.value = `<p style="color:#f56c6c">文档加载失败：${e.message}</p>`
@@ -79,19 +81,27 @@ function onKey(e) {
   else if (e.key === 'ArrowRight') go(1)
 }
 
+let unbindHeaderScroll = () => {}
+
 onMounted(() => {
+  document.documentElement.classList.add('course-view')
   window.addEventListener('keydown', onKey)
+  unbindHeaderScroll = bindHeaderScroll(contentScroller.value)
   if (route.query.tab === 'code') tab.value = 'code'
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+onBeforeUnmount(() => {
+  document.documentElement.classList.remove('course-view')
+  window.removeEventListener('keydown', onKey)
+  unbindHeaderScroll()
+})
 </script>
 
 <template>
-  <div class="p100-page">
+  <div class="p100-page day-detail-page" :class="{ 'navigation-hidden': uiState.headerHidden }">
     <el-empty v-if="!day" description="没有这一天" />
 
     <template v-else>
-      <div class="p100-card head">
+      <div class="p100-card head" :class="{ 'head-detached': uiState.headerHidden }">
         <div class="hleft">
           <div class="title-row">
             <span class="dayno p100-mono">Day {{ day.day }}</span>
@@ -132,7 +142,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         </el-radio-group>
       </div>
 
-      <div class="p100-card body">
+      <div ref="contentScroller" class="p100-card body">
         <el-tabs v-model="tab">
           <el-tab-pane label="文档" name="doc">
             <el-skeleton v-if="loading" :rows="8" animated />
@@ -155,11 +165,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  position: sticky;
-  top: var(--p100-header-top, 58px);
   z-index: 50;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  transition: top 0.25s ease;
+  background: var(--p100-card);
+  border-color: #dce4ee;
+  box-shadow: 0 2px 8px rgba(31, 35, 41, 0.04);
+  isolation: isolate;
+  flex: 0 0 auto;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.head::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -1px;
+  bottom: -14px;
+  left: -1px;
+  height: 14px;
+  background: linear-gradient(to bottom, rgba(31, 35, 41, 0.1), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.head-detached {
+  border-bottom-color: #c7d3e1;
+  box-shadow: 0 8px 18px rgba(31, 35, 41, 0.12);
+}
+.head-detached::after {
+  opacity: 1;
 }
 .title-row {
   display: flex;
@@ -191,14 +223,31 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   gap: 8px;
 }
 .doc-tabs {
-  margin-top: 12px;
+  flex: 0 0 auto;
+  margin-top: 16px;
 }
 .body {
-  margin-top: 12px;
-  min-height: 400px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 .tip {
+  flex: 0 0 auto;
   margin-top: 12px;
   font-size: 12px;
+}
+.day-detail-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 8px;
+  transition: padding-top 0.25s ease;
+}
+.navigation-hidden {
+  padding-top: max(8px, 1vh);
 }
 </style>
