@@ -40,9 +40,6 @@ jobs:
         env:
           VITE_BASE: /python-100-days-web/
 
-      - name: Create SPA fallback
-        run: cp dist/index.html dist/404.html
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

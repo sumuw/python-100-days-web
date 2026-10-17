@@ -22,7 +22,7 @@ function gotoResume() {
 </script>
 
 <template>
-  <el-container class="layout">
+  <el-container class="layout" :class="{ 'day-layout': $route.name === 'day' }">
     <el-header class="header" :class="{ 'header-hidden': uiState.headerHidden }" height="58px">
       <div class="brand" @click="router.push('/')">
         <span class="brand-main">Python 100 天</span>
@@ -67,8 +67,10 @@ function gotoResume() {
 .layout {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
+}
+.day-layout {
   height: 100%;
-  min-height: 0;
 }
 .header {
   display: flex;
@@ -120,13 +122,14 @@ function gotoResume() {
 }
 .main {
   flex: 1;
-  min-height: 0;
+  min-height: auto;
   padding: 0;
   margin-top: 58px;
   overflow: visible;
   transition: margin-top 0.25s ease;
 }
 .day-main {
+  min-height: 0;
   overflow: hidden;
 }
 .day-main.header-hidden-main {
